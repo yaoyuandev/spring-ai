@@ -30,13 +30,13 @@ class OllamaEmbeddingClientIT {
 	private static final Log logger = LogFactory.getLog(OllamaApiIT.class);
 
 	@Container
-	static GenericContainer<?> ollamaContainer = new GenericContainer<>("ollama/ollama:0.1.16").withExposedPorts(11434);
+	static GenericContainer<?> ollamaContainer = new GenericContainer<>("ollama/ollama:0.1.21").withExposedPorts(11434);
 
 	static String baseUrl;
 
 	@BeforeAll
 	public static void beforeAll() throws IOException, InterruptedException {
-		logger.info("Start pulling the 'orca-mini' model (3GB) ... would take several minutes ...");
+		logger.info("Start pulling the 'orca-mini' generative (3GB) ... would take several minutes ...");
 		ollamaContainer.execInContainer("ollama", "pull", "orca-mini");
 		logger.info("orca-mini pulling competed!");
 
@@ -50,8 +50,8 @@ class OllamaEmbeddingClientIT {
 	void singleEmbedding() {
 		assertThat(embeddingClient).isNotNull();
 		EmbeddingResponse embeddingResponse = embeddingClient.embedForResponse(List.of("Hello World"));
-		assertThat(embeddingResponse.getData()).hasSize(1);
-		assertThat(embeddingResponse.getData().get(0).getEmbedding()).isNotEmpty();
+		assertThat(embeddingResponse.getResults()).hasSize(1);
+		assertThat(embeddingResponse.getResults().get(0).getOutput()).isNotEmpty();
 		assertThat(embeddingClient.dimensions()).isEqualTo(3200);
 	}
 

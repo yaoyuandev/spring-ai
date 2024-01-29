@@ -53,7 +53,7 @@ public class OllamaEmbeddingAutoConfigurationIT {
 
 	@BeforeAll
 	public static void beforeAll() throws IOException, InterruptedException {
-		logger.info("Start pulling the '" + MODEL_NAME + " ' model ... would take several minutes ...");
+		logger.info("Start pulling the '" + MODEL_NAME + " ' generative ... would take several minutes ...");
 		ollamaContainer.execInContainer("ollama", "pull", MODEL_NAME);
 		logger.info(MODEL_NAME + " pulling competed!");
 
@@ -70,8 +70,8 @@ public class OllamaEmbeddingAutoConfigurationIT {
 			OllamaEmbeddingClient embeddingClient = context.getBean(OllamaEmbeddingClient.class);
 			assertThat(embeddingClient).isNotNull();
 			EmbeddingResponse embeddingResponse = embeddingClient.embedForResponse(List.of("Hello World"));
-			assertThat(embeddingResponse.getData()).hasSize(1);
-			assertThat(embeddingResponse.getData().get(0).getEmbedding()).isNotEmpty();
+			assertThat(embeddingResponse.getResults()).hasSize(1);
+			assertThat(embeddingResponse.getResults().get(0).getOutput()).isNotEmpty();
 			assertThat(embeddingClient.dimensions()).isEqualTo(3200);
 		});
 	}

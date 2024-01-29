@@ -23,14 +23,14 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import reactor.core.publisher.Flux;
 
 import org.springframework.ai.chat.ChatResponse;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.openai.OpenAiChatClient;
 import org.springframework.ai.openai.OpenAiEmbeddingClient;
-import org.springframework.ai.prompt.Prompt;
-import org.springframework.ai.prompt.messages.UserMessage;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -49,7 +49,7 @@ public class OpenAiAutoConfigurationIT {
 	void generate() {
 		contextRunner.run(context -> {
 			OpenAiChatClient client = context.getBean(OpenAiChatClient.class);
-			String response = client.generate("Hello");
+			String response = client.call("Hello");
 			assertThat(response).isNotEmpty();
 			logger.info("Response: " + response);
 		});
@@ -59,10 +59,9 @@ public class OpenAiAutoConfigurationIT {
 	void generateStreaming() {
 		contextRunner.run(context -> {
 			OpenAiChatClient client = context.getBean(OpenAiChatClient.class);
-			Flux<ChatResponse> responseFlux = client.generateStream(new Prompt(new UserMessage("Hello")));
-
+			Flux<ChatResponse> responseFlux = client.stream(new Prompt(new UserMessage("Hello")));
 			String response = responseFlux.collectList().block().stream().map(chatResponse -> {
-				return chatResponse.getGenerations().get(0).getContent();
+				return chatResponse.getResults().get(0).getOutput().getContent();
 			}).collect(Collectors.joining());
 
 			assertThat(response).isNotEmpty();
@@ -77,11 +76,11 @@ public class OpenAiAutoConfigurationIT {
 
 			EmbeddingResponse embeddingResponse = embeddingClient
 				.embedForResponse(List.of("Hello World", "World is big and salvation is near"));
-			assertThat(embeddingResponse.getData()).hasSize(2);
-			assertThat(embeddingResponse.getData().get(0).getEmbedding()).isNotEmpty();
-			assertThat(embeddingResponse.getData().get(0).getIndex()).isEqualTo(0);
-			assertThat(embeddingResponse.getData().get(1).getEmbedding()).isNotEmpty();
-			assertThat(embeddingResponse.getData().get(1).getIndex()).isEqualTo(1);
+			assertThat(embeddingResponse.getResults()).hasSize(2);
+			assertThat(embeddingResponse.getResults().get(0).getOutput()).isNotEmpty();
+			assertThat(embeddingResponse.getResults().get(0).getIndex()).isEqualTo(0);
+			assertThat(embeddingResponse.getResults().get(1).getOutput()).isNotEmpty();
+			assertThat(embeddingResponse.getResults().get(1).getIndex()).isEqualTo(1);
 
 			assertThat(embeddingClient.dimensions()).isEqualTo(1536);
 		});

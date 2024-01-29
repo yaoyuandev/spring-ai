@@ -18,6 +18,7 @@ package org.springframework.ai.autoconfigure.ollama;
 
 import org.springframework.ai.ollama.api.OllamaOptions;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 
 /**
  * Ollama Embedding autoconfiguration properties.
@@ -31,15 +32,16 @@ public class OllamaEmbeddingProperties {
 	public static final String CONFIG_PREFIX = "spring.ai.ollama.embedding";
 
 	/**
-	 * Ollama Embedding model name. Defaults to 'llama2'.
+	 * Ollama Embedding generative name. Defaults to 'llama2'.
 	 */
 	private String model = "llama2";
 
 	/**
-	 * Client lever Ollama options. Use this property to configure model temperature, topK
-	 * and topP and alike parameters. The null values are ignored defaulting to the
-	 * model's defaults.
+	 * Client lever Ollama options. Use this property to configure generative temperature,
+	 * topK and topP and alike parameters. The null values are ignored defaulting to the
+	 * generative's defaults.
 	 */
+	@NestedConfigurationProperty
 	private OllamaOptions options = new OllamaOptions();
 
 	public String getModel() {

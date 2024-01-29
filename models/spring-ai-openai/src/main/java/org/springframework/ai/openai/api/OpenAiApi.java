@@ -69,7 +69,7 @@ public class OpenAiApi {
 	}
 
 	/**
-	 * Create an new chat completion api.
+	 * Create a new chat completion api.
 	 *
 	 * @param baseUrl api base URL.
 	 * @param openAiToken OpenAI apiKey.
@@ -96,10 +96,10 @@ public class OpenAiApi {
 				if (response.getStatusCode().isError()) {
 					if (response.getStatusCode().is4xxClientError()) {
 						throw new OpenAiApiClientErrorException(String.format("%s - %s", response.getStatusCode().value(),
-							new ObjectMapper().readValue(response.getBody(), ResponseError.class)));
+							OpenAiApi.this.objectMapper.readValue(response.getBody(), ResponseError.class)));
 					}
 					throw new OpenAiApiException(String.format("%s - %s", response.getStatusCode().value(),
-							new ObjectMapper().readValue(response.getBody(), ResponseError.class)));
+							OpenAiApi.this.objectMapper.readValue(response.getBody(), ResponseError.class)));
 				}
 			}
 		};
