@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 the original author or authors.
+ * Copyright 2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,16 +15,16 @@
  */
 package org.springframework.ai.autoconfigure.ollama;
 
-import org.springframework.ai.autoconfigure.NativeHints;
 import org.springframework.ai.ollama.OllamaChatClient;
 import org.springframework.ai.ollama.OllamaEmbeddingClient;
 import org.springframework.ai.ollama.api.OllamaApi;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ImportRuntimeHints;
+import org.springframework.web.client.RestClient;
 
 /**
  * {@link AutoConfiguration Auto-configuration} for Ollama Chat Client.
@@ -32,23 +32,23 @@ import org.springframework.context.annotation.ImportRuntimeHints;
  * @author Christian Tzolov
  * @since 0.8.0
  */
-@AutoConfiguration
+@AutoConfiguration(after = RestClientAutoConfiguration.class)
 @ConditionalOnClass(OllamaApi.class)
 @EnableConfigurationProperties({ OllamaChatProperties.class, OllamaEmbeddingProperties.class,
 		OllamaConnectionProperties.class })
-@ImportRuntimeHints(NativeHints.class)
 public class OllamaAutoConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
-	public OllamaApi ollamaApi(OllamaConnectionProperties properties) {
-		return new OllamaApi(properties.getBaseUrl());
+	public OllamaApi ollamaApi(OllamaConnectionProperties properties, RestClient.Builder restClientBuilder) {
+		return new OllamaApi(properties.getBaseUrl(), restClientBuilder);
 	}
 
 	@Bean
 	public OllamaChatClient ollamaChatClient(OllamaApi ollamaApi, OllamaChatProperties properties) {
 
-		return new OllamaChatClient(ollamaApi).withModel(properties.getModel()).withOptions(properties.getOptions());
+		return new OllamaChatClient(ollamaApi).withModel(properties.getModel())
+			.withDefaultOptions(properties.getOptions());
 	}
 
 	@Bean
@@ -56,7 +56,7 @@ public class OllamaAutoConfiguration {
 	public OllamaEmbeddingClient ollamaEmbeddingClient(OllamaApi ollamaApi, OllamaEmbeddingProperties properties) {
 
 		return new OllamaEmbeddingClient(ollamaApi).withModel(properties.getModel())
-			.withOptions(properties.getOptions());
+			.withDefaultOptions(properties.getOptions());
 	}
 
 }

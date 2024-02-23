@@ -16,6 +16,7 @@
 package org.springframework.ai.chat;
 
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.ai.model.ModelResponse;
 import org.springframework.ai.chat.metadata.ChatResponseMetadata;
@@ -77,8 +78,29 @@ public class ChatResponse implements ModelResponse<Generation> {
 	 * @return Returns {@link ChatResponseMetadata} containing information about the use
 	 * of the AI provider's API.
 	 */
+	@Override
 	public ChatResponseMetadata getMetadata() {
 		return this.chatResponseMetadata;
+	}
+
+	@Override
+	public String toString() {
+		return "ChatResponse [metadata=" + chatResponseMetadata + ", generations=" + generations + "]";
+	}
+
+	@Override
+	public boolean equals(Object o) {
+		if (this == o)
+			return true;
+		if (!(o instanceof ChatResponse that))
+			return false;
+		return Objects.equals(chatResponseMetadata, that.chatResponseMetadata)
+				&& Objects.equals(generations, that.generations);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(chatResponseMetadata, generations);
 	}
 
 }

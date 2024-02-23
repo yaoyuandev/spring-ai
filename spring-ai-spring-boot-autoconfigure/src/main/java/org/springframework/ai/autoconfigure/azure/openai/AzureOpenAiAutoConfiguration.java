@@ -20,6 +20,7 @@ import com.azure.ai.openai.OpenAIClient;
 import com.azure.ai.openai.OpenAIClientBuilder;
 import com.azure.core.credential.AzureKeyCredential;
 
+import com.azure.core.util.ClientOptions;
 import org.springframework.ai.azure.openai.AzureOpenAiChatClient;
 import org.springframework.ai.azure.openai.AzureOpenAiEmbeddingClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -44,6 +45,7 @@ public class AzureOpenAiAutoConfiguration {
 
 		return new OpenAIClientBuilder().endpoint(connectionProperties.getEndpoint())
 			.credential(new AzureKeyCredential(connectionProperties.getApiKey()))
+			.clientOptions(new ClientOptions().setApplicationId("spring-ai"))
 			.buildClient();
 	}
 
@@ -51,11 +53,8 @@ public class AzureOpenAiAutoConfiguration {
 	public AzureOpenAiChatClient azureOpenAiChatClient(OpenAIClient openAIClient,
 			AzureOpenAiChatProperties chatProperties) {
 
-		AzureOpenAiChatClient azureOpenAiChatClient = new AzureOpenAiChatClient(openAIClient)
-			.withModel(chatProperties.getModel())
-			.withTemperature(chatProperties.getTemperature())
-			.withMaxTokens(chatProperties.getMaxTokens())
-			.withTopP(chatProperties.getTopP());
+		AzureOpenAiChatClient azureOpenAiChatClient = new AzureOpenAiChatClient(openAIClient,
+				chatProperties.getOptions());
 
 		return azureOpenAiChatClient;
 	}
@@ -63,7 +62,8 @@ public class AzureOpenAiAutoConfiguration {
 	@Bean
 	public AzureOpenAiEmbeddingClient azureOpenAiEmbeddingClient(OpenAIClient openAIClient,
 			AzureOpenAiEmbeddingProperties embeddingProperties) {
-		return new AzureOpenAiEmbeddingClient(openAIClient, embeddingProperties.getModel());
+		return new AzureOpenAiEmbeddingClient(openAIClient, embeddingProperties.getMetadataMode(),
+				embeddingProperties.getOptions());
 	}
 
 }

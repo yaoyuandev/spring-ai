@@ -27,6 +27,7 @@ import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.vertex.VertexAiEmbeddingClient;
 import org.springframework.ai.vertex.VertexAiChatClient;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
+import org.springframework.boot.autoconfigure.web.client.RestClientAutoConfiguration;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,9 +40,9 @@ public class VertexAiAutoConfigurationIT {
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
 		.withPropertyValues("spring.ai.vertex.ai.baseUrl=https://generativelanguage.googleapis.com/v1beta3",
 				"spring.ai.vertex.ai.apiKey=" + System.getenv("PALM_API_KEY"),
-				"spring.ai.vertex.ai.chat.model=chat-bison-001",
+				"spring.ai.vertex.ai.chat.model=chat-bison-001", "spring.ai.vertex.ai.chat.options.temperature=0.8",
 				"spring.ai.vertex.ai.embedding.model=embedding-gecko-001")
-		.withConfiguration(AutoConfigurations.of(VertexAiAutoConfiguration.class));
+		.withConfiguration(AutoConfigurations.of(RestClientAutoConfiguration.class, VertexAiAutoConfiguration.class));
 
 	@Test
 	void generate() {

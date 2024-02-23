@@ -29,7 +29,7 @@ public class Prompt implements ModelRequest<List<Message>> {
 
 	private final List<Message> messages;
 
-	private ModelOptions modelOptions;
+	private ChatOptions modelOptions;
 
 	public Prompt(String contents) {
 		this(new UserMessage(contents));
@@ -43,15 +43,15 @@ public class Prompt implements ModelRequest<List<Message>> {
 		this.messages = messages;
 	}
 
-	public Prompt(String contents, ModelOptions modelOptions) {
+	public Prompt(String contents, ChatOptions modelOptions) {
 		this(new UserMessage(contents), modelOptions);
 	}
 
-	public Prompt(Message message, ModelOptions modelOptions) {
+	public Prompt(Message message, ChatOptions modelOptions) {
 		this(Collections.singletonList(message), modelOptions);
 	}
 
-	public Prompt(List<Message> messages, ModelOptions modelOptions) {
+	public Prompt(List<Message> messages, ChatOptions modelOptions) {
 		this.messages = messages;
 		this.modelOptions = modelOptions;
 	}
@@ -64,8 +64,9 @@ public class Prompt implements ModelRequest<List<Message>> {
 		return sb.toString();
 	}
 
+	@Override
 	public ModelOptions getOptions() {
-		return modelOptions;
+		return this.modelOptions;
 	}
 
 	@Override
@@ -75,7 +76,7 @@ public class Prompt implements ModelRequest<List<Message>> {
 
 	@Override
 	public String toString() {
-		return "Prompt{" + "messages=" + messages + ", modelOptions=" + modelOptions + '}';
+		return "Prompt{" + "messages=" + this.messages + ", modelOptions=" + this.modelOptions + '}';
 	}
 
 	@Override
@@ -84,12 +85,12 @@ public class Prompt implements ModelRequest<List<Message>> {
 			return true;
 		if (!(o instanceof Prompt prompt))
 			return false;
-		return Objects.equals(messages, prompt.messages) && Objects.equals(modelOptions, prompt.modelOptions);
+		return Objects.equals(this.messages, prompt.messages) && Objects.equals(this.modelOptions, prompt.modelOptions);
 	}
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(messages, modelOptions);
+		return Objects.hash(this.messages, this.modelOptions);
 	}
 
 }

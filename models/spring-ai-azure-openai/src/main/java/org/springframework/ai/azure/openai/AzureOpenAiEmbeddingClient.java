@@ -15,9 +15,11 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.AbstractEmbeddingClient;
 import org.springframework.ai.embedding.Embedding;
+import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.EmbeddingResponseMetadata;
+import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.util.Assert;
 
 public class AzureOpenAiEmbeddingClient extends AbstractEmbeddingClient {
@@ -26,52 +28,69 @@ public class AzureOpenAiEmbeddingClient extends AbstractEmbeddingClient {
 
 	private final OpenAIClient azureOpenAiClient;
 
-	private final String model;
+	private final AzureOpenAiEmbeddingOptions defaultOptions;
 
 	private final MetadataMode metadataMode;
 
 	public AzureOpenAiEmbeddingClient(OpenAIClient azureOpenAiClient) {
-		this(azureOpenAiClient, "text-embedding-ada-002");
+		this(azureOpenAiClient, MetadataMode.EMBED);
 	}
 
-	public AzureOpenAiEmbeddingClient(OpenAIClient azureOpenAiClient, String model) {
-		this(azureOpenAiClient, model, MetadataMode.EMBED);
+	public AzureOpenAiEmbeddingClient(OpenAIClient azureOpenAiClient, MetadataMode metadataMode) {
+		this(azureOpenAiClient, metadataMode,
+				AzureOpenAiEmbeddingOptions.builder().withModel("text-embedding-ada-002").build());
 	}
 
-	public AzureOpenAiEmbeddingClient(OpenAIClient azureOpenAiClient, String model, MetadataMode metadataMode) {
+	public AzureOpenAiEmbeddingClient(OpenAIClient azureOpenAiClient, MetadataMode metadataMode,
+			AzureOpenAiEmbeddingOptions options) {
 		Assert.notNull(azureOpenAiClient, "com.azure.ai.openai.OpenAIClient must not be null");
-		Assert.notNull(model, "Model must not be null");
 		Assert.notNull(metadataMode, "Metadata mode must not be null");
+		Assert.notNull(options, "Options must not be null");
 		this.azureOpenAiClient = azureOpenAiClient;
-		this.model = model;
 		this.metadataMode = metadataMode;
+		this.defaultOptions = options;
 	}
 
 	@Override
 	public List<Double> embed(Document document) {
 		logger.debug("Retrieving embeddings");
-		Embeddings embeddings = this.azureOpenAiClient.getEmbeddings(this.model,
-				new EmbeddingsOptions(List.of(document.getFormattedContent(this.metadataMode))));
-		logger.debug("Embeddings retrieved");
-		return extractEmbeddingsList(embeddings);
-	}
 
-	private List<Double> extractEmbeddingsList(Embeddings embeddings) {
-		return embeddings.getData().stream().map(EmbeddingItem::getEmbedding).flatMap(List::stream).toList();
+		EmbeddingResponse response = this
+			.call(new EmbeddingRequest(List.of(document.getFormattedContent(this.metadataMode)), null));
+		logger.debug("Embeddings retrieved");
+		return response.getResults().stream().map(embedding -> embedding.getOutput()).flatMap(List::stream).toList();
 	}
 
 	@Override
-	public EmbeddingResponse call(EmbeddingRequest request) {
+	public EmbeddingResponse call(EmbeddingRequest embeddingRequest) {
 		logger.debug("Retrieving embeddings");
-		Embeddings embeddings = this.azureOpenAiClient.getEmbeddings(this.model,
-				new EmbeddingsOptions(request.getInstructions()));
+
+		EmbeddingsOptions azureOptions = toEmbeddingOptions(embeddingRequest);
+		Embeddings embeddings = this.azureOpenAiClient.getEmbeddings(azureOptions.getModel(), azureOptions);
+
 		logger.debug("Embeddings retrieved");
 		return generateEmbeddingResponse(embeddings);
 	}
 
+	/**
+	 * Test access
+	 */
+	EmbeddingsOptions toEmbeddingOptions(EmbeddingRequest embeddingRequest) {
+		var azureOptions = new EmbeddingsOptions(embeddingRequest.getInstructions());
+		if (this.defaultOptions != null) {
+			azureOptions.setModel(this.defaultOptions.getModel());
+			azureOptions.setUser(this.defaultOptions.getUser());
+		}
+		if (embeddingRequest.getOptions() != null && !EmbeddingOptions.EMPTY.equals(embeddingRequest.getOptions())) {
+			azureOptions = ModelOptionsUtils.merge(embeddingRequest.getOptions(), azureOptions,
+					EmbeddingsOptions.class);
+		}
+		return azureOptions;
+	}
+
 	private EmbeddingResponse generateEmbeddingResponse(Embeddings embeddings) {
 		List<Embedding> data = generateEmbeddingList(embeddings.getData());
-		EmbeddingResponseMetadata metadata = generateMetadata(this.model, embeddings.getUsage());
+		EmbeddingResponseMetadata metadata = generateMetadata(embeddings.getUsage());
 		return new EmbeddingResponse(data, metadata);
 	}
 
@@ -86,12 +105,16 @@ public class AzureOpenAiEmbeddingClient extends AbstractEmbeddingClient {
 		return data;
 	}
 
-	private EmbeddingResponseMetadata generateMetadata(String model, EmbeddingsUsage embeddingsUsage) {
+	private EmbeddingResponseMetadata generateMetadata(EmbeddingsUsage embeddingsUsage) {
 		EmbeddingResponseMetadata metadata = new EmbeddingResponseMetadata();
-		metadata.put("model", model);
+		// metadata.put("model", model);
 		metadata.put("prompt-tokens", embeddingsUsage.getPromptTokens());
 		metadata.put("total-tokens", embeddingsUsage.getTotalTokens());
 		return metadata;
+	}
+
+	public AzureOpenAiEmbeddingOptions getDefaultOptions() {
+		return this.defaultOptions;
 	}
 
 }

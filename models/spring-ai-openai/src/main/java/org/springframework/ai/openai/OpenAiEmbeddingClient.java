@@ -26,13 +26,18 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.document.MetadataMode;
 import org.springframework.ai.embedding.AbstractEmbeddingClient;
 import org.springframework.ai.embedding.Embedding;
+import org.springframework.ai.embedding.EmbeddingOptions;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 import org.springframework.ai.embedding.EmbeddingResponseMetadata;
+import org.springframework.ai.model.ModelOptionsUtils;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.openai.api.OpenAiApi.EmbeddingList;
 import org.springframework.ai.openai.api.OpenAiApi.OpenAiApiException;
 import org.springframework.ai.openai.api.OpenAiApi.Usage;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.RetryListener;
 import org.springframework.retry.support.RetryTemplate;
 import org.springframework.util.Assert;
 
@@ -45,35 +50,41 @@ public class OpenAiEmbeddingClient extends AbstractEmbeddingClient {
 
 	private static final Logger logger = LoggerFactory.getLogger(OpenAiEmbeddingClient.class);
 
-	public static final String DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-ada-002";
+	private final OpenAiEmbeddingOptions defaultOptions;
 
-	public final RetryTemplate retryTemplate = RetryTemplate.builder()
+	private final RetryTemplate retryTemplate = RetryTemplate.builder()
 		.maxAttempts(10)
 		.retryOn(OpenAiApiException.class)
 		.exponentialBackoff(Duration.ofMillis(2000), 5, Duration.ofMillis(3 * 60000))
+		.withListener(new RetryListener() {
+			public <T extends Object, E extends Throwable> void onError(RetryContext context,
+					RetryCallback<T, E> callback, Throwable throwable) {
+				logger.warn("Retry error. Retry count:" + context.getRetryCount(), throwable);
+			};
+		})
 		.build();
 
 	private final OpenAiApi openAiApi;
 
-	private final String embeddingModelName;
-
 	private final MetadataMode metadataMode;
 
 	public OpenAiEmbeddingClient(OpenAiApi openAiApi) {
-		this(openAiApi, DEFAULT_OPENAI_EMBEDDING_MODEL);
+		this(openAiApi, MetadataMode.EMBED);
 	}
 
-	public OpenAiEmbeddingClient(OpenAiApi openAiApi, String embeddingModel) {
-		this(openAiApi, embeddingModel, MetadataMode.EMBED);
+	public OpenAiEmbeddingClient(OpenAiApi openAiApi, MetadataMode metadataMode) {
+		this(openAiApi, metadataMode,
+				OpenAiEmbeddingOptions.builder().withModel(OpenAiApi.DEFAULT_EMBEDDING_MODEL).build());
 	}
 
-	public OpenAiEmbeddingClient(OpenAiApi openAiApi, String model, MetadataMode metadataMode) {
+	public OpenAiEmbeddingClient(OpenAiApi openAiApi, MetadataMode metadataMode, OpenAiEmbeddingOptions options) {
 		Assert.notNull(openAiApi, "OpenAiService must not be null");
-		Assert.notNull(model, "Model must not be null");
 		Assert.notNull(metadataMode, "metadataMode must not be null");
+		Assert.notNull(options, "options must not be null");
+
 		this.openAiApi = openAiApi;
-		this.embeddingModelName = model;
 		this.metadataMode = metadataMode;
+		this.defaultOptions = options;
 	}
 
 	@Override
@@ -82,12 +93,23 @@ public class OpenAiEmbeddingClient extends AbstractEmbeddingClient {
 		return this.embed(document.getFormattedContent(this.metadataMode));
 	}
 
+	@SuppressWarnings("unchecked")
 	@Override
 	public EmbeddingResponse call(EmbeddingRequest request) {
 
 		return this.retryTemplate.execute(ctx -> {
-			org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest<List<String>> apiRequest = new org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest<>(
-					request.getInstructions(), this.embeddingModelName);
+
+			org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest<List<String>> apiRequest = (this.defaultOptions != null)
+					? new org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest<>(request.getInstructions(),
+							this.defaultOptions.getModel(), this.defaultOptions.getEncodingFormat(),
+							this.defaultOptions.getUser())
+					: new org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest<>(request.getInstructions(),
+							OpenAiApi.DEFAULT_EMBEDDING_MODEL);
+
+			if (request.getOptions() != null && !EmbeddingOptions.EMPTY.equals(request.getOptions())) {
+				apiRequest = ModelOptionsUtils.merge(request.getOptions(), apiRequest,
+						org.springframework.ai.openai.api.OpenAiApi.EmbeddingRequest.class);
+			}
 
 			EmbeddingList<OpenAiApi.Embedding> apiEmbeddingResponse = this.openAiApi.embeddings(apiRequest).getBody();
 
@@ -96,7 +118,7 @@ public class OpenAiEmbeddingClient extends AbstractEmbeddingClient {
 				return new EmbeddingResponse(List.of());
 			}
 
-			var metadata = generateMetadata(apiEmbeddingResponse.model(), apiEmbeddingResponse.usage());
+			var metadata = generateResponseMetadata(apiEmbeddingResponse.model(), apiEmbeddingResponse.usage());
 
 			List<Embedding> embeddings = apiEmbeddingResponse.data()
 				.stream()
@@ -108,7 +130,7 @@ public class OpenAiEmbeddingClient extends AbstractEmbeddingClient {
 		});
 	}
 
-	private EmbeddingResponseMetadata generateMetadata(String model, Usage usage) {
+	private EmbeddingResponseMetadata generateResponseMetadata(String model, Usage usage) {
 		EmbeddingResponseMetadata metadata = new EmbeddingResponseMetadata();
 		metadata.put("model", model);
 		metadata.put("prompt-tokens", usage.promptTokens());
